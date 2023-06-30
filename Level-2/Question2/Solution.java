@@ -13,15 +13,15 @@ public class Solution {
         quickSort(l, 0, l.length - 1, 0);
 
         // Then sort the minors and revisions at the same time
-        subVersionSort(l, 0, 0, 1);
+        subVersionSort(l, 0,  l.length - 1, 1);
 
         return l;
     }
 
-    private static void subVersionSort(String[] l, int startIndex, int endIndex, int digit) {
+    private static void subVersionSort(String[] l, int startIndex, int finalIndex, int digit) {
         // Look at the element and see when it increments
-        // to determine the scope of your next layer of sorting
-        for (int currentIndex = startIndex; currentIndex < l.length - 1; currentIndex++) {
+        int endIndex = startIndex;
+        for (int currentIndex = startIndex; currentIndex < finalIndex; currentIndex++) {
             // Split the string by periods, to get our major, minor, or revision -> "currentDigit"
 
             String[] currentDigitArray = l[currentIndex].split("\\.");
@@ -50,9 +50,11 @@ public class Solution {
                 startIndex = currentIndex + 1;
             }
         }
-        quickSort(l, startIndex, l.length - 1, digit);
+        // We need to run one final sort to make sure
+        // that there are no edge cases on the end of the array
+        quickSort(l, startIndex, finalIndex, digit);
         if (l.length - 1 - startIndex > 0 && digit < 2) {
-            subVersionSort(l, startIndex, l.length - 1, digit + 1);
+            subVersionSort(l, startIndex, finalIndex, digit + 1);
         }
 
     }
@@ -87,7 +89,6 @@ public class Solution {
         if (!(pivotDigits.length - 1 < currentDigit)) {
             pivotValue = Integer.parseInt(pivotDigits[currentDigit]);
         }
-        // System.out.println("Final pivot value " + pivotValue);
         // loop through the array and swap elements
         // if the current element is less than the pivot
         int partitionIndex = startIndex;
@@ -125,12 +126,7 @@ public class Solution {
 		//check if values are given correctly and then move ahead
 		if (low < high) {
 
-			// pi is partitioning index, arr[p]
 			int partitionIndex = partition(l, low, high, digit);
-            // System.out.println("Partition index " + partitionIndex);
-            if (partitionIndex == 0) {
-                return;
-            }
 
 			// Separately sort elements before
 			// partition and after partition
@@ -138,14 +134,16 @@ public class Solution {
 			quickSort(l, partitionIndex + 1, high, digit);
 		}
 	}
-
     public static void main(String[] args) {
         
-        String[] test = {"1.11", "2.0.0", "1.2", "2", "0.1", "1.2.1", "1.1.1", "2.0"};
-        String[] result = solution(test);
-        
-        for (String s : result) {
-            System.out.print(s + ", ");
+        for (int i = 0; i < 10; i++) {
+            String[] test = {"1.11", "2.0.0", "1.2", "2", "0.1", "1.2.1", "1.1.1", "2.0"};
+            String[] result = solution(test);
+            
+            for (String s : result) {
+                System.out.print(s + ", ");
+            }
+            System.out.println();
         }
     }
 }
