@@ -2,6 +2,7 @@ import java.util.ArrayList;
 
 public class Solution {
     public static int[] solution(int[][] m) {
+
         // Using the Absorbing Markov Chain algorithm, we first must
         // re-order the matrix into standard form, where the absorbing
         // states are at the bottom right of the matrix. 
@@ -11,16 +12,81 @@ public class Solution {
         ArrayList<Integer> terminalStates = findTerminalStates(m);
 
         // Re-order the matrix in standard form
-        fraction[][] standardizedMatrix = toStandardForm(m, terminalStates);
+        double[][] standardizedMatrix = toStandardForm(m, terminalStates);
 
         // Which requires the standardized matrix and the identity matrix
-        fraction[][] F = getFundamentalMatrix(standardizedMatrix, getIdentityMatrix(terminalStates.size()));
-  
+        double[][] F = getFundamentalMatrix(standardizedMatrix, getIdentityMatrix(terminalStates.size()));
+
         // Compute the limiting matrix 
         // i.e. F * R
-        F = multiplyMatrices(F, getR(standardizedMatrix, terminalStates.size()));
 
-        return null;
+        //print F
+        System.out.println("F");
+        for (int i = 0; i < F.length; i++) {
+            for (int j = 0; j < F[0].length; j++) {
+                System.out.print(F[i][j] + " ");
+            }
+            System.out.println();
+        }        
+
+        return finalArray(multiplyMatrices(F, getR(standardizedMatrix, terminalStates.size())));
+    }
+
+    private static int[] finalArray(double[][] FR) {
+        // The final array is the first row of the FR matrix
+        int[] finalArray = new int[FR[0].length+1];
+        // convert the first row of FR to fractions
+        fraction[] fractions = new fraction[FR[0].length];
+        for (int i = 0; i < FR[0].length; i++) {
+            fractions[i] = convertDecimalToFraction(FR[0][i]);
+        }
+        // find the lowest common denominator
+        int lcd = fractions[0].getDenominator();
+        for (int i = 1; i < fractions.length; i++) {
+            lcd = lcm(lcd, fractions[i].getDenominator());
+        }
+        // convert all fractions to the lcd
+        for (int i = 0; i < fractions.length; i++) {
+            fractions[i].convertDenominator(lcd);
+        }
+        // set each numerator to the final array, with the denominator as the final index
+        for (int i = 0; i < fractions.length; i++) {
+            finalArray[i] = fractions[i].getNumerator();
+        }
+        finalArray[finalArray.length-1] = lcd;
+
+        // // print final array
+        // System.out.println("Final Array");
+        // for (int i = 0; i < finalArray.length; i++) {
+        //     System.out.print(finalArray[i] + " ");
+        // }
+
+        return finalArray;
+    }
+
+    private static int lcm (int a, int b) {
+        return a * (b / gcd(a, b));
+    }
+    private static int gcd (int a, int b) {
+        if (b == 0) {
+            return a;
+        }
+        return gcd(b, a%b);
+    }
+
+    private static fraction convertDecimalToFraction(double x){
+        double tolerance = 1.0E-6;
+        double h1=1; double h2=0;
+        double k1=0; double k2=1;
+        double b = x;
+        do {
+            double a = Math.floor(b);
+            double aux = h1; h1 = a*h1+h2; h2 = aux;
+            aux = k1; k1 = a*k1+k2; k2 = aux;
+            b = 1/(b-a);
+        } while (Math.abs(x-h1/k1) > x*tolerance);
+
+        return new fraction((int) ((x < 0) ? -h1 : h1), (int) k1);
     }
 
     /**
@@ -36,7 +102,7 @@ public class Solution {
         // smallest terminal state
         for (int i = 0; i < matrix.length; i++) {
             boolean isTerminal = true;
-            for (int num : matrix[i]) {
+            for (double num : matrix[i]) {
                 if (num != 0) {
                     isTerminal = false;
                     break;
@@ -65,7 +131,7 @@ public class Solution {
      * @param terminalStates
      * @return the computed matrix
      */
-    private static fraction[][] toStandardForm(int[][] matrix, ArrayList<Integer> terminalStates) {
+    private static double[][] toStandardForm(int[][] matrix, ArrayList<Integer> terminalStates) {
 
         // First we should re-order the rows
         // This is done by swapping the rows of the terminal states 
@@ -96,34 +162,36 @@ public class Solution {
             }
         }
 
-        fraction[][] fractionMatrix = new fraction[matrix.length][matrix.length];
+        double[][] fractionMatrix = new double[matrix.length][matrix.length];
         // Now, we need to convert the matrix to fractions
         // We need to add all of the values in a row up to get our denominator
         for (int i = 0; i < matrix.length; i++) {
-            int denominator = 0;
+            double denominator = 0;
             for (int j = 0; j < matrix.length; j++) {
+                int test = matrix[i][j];
                 denominator += matrix[i][j];
             }
             if (denominator == 0) {
                 denominator = 1;
             }
             for (int j = 0; j < matrix.length; j++) {
-                fractionMatrix[i][j] = new fraction(matrix[i][j], denominator);
+                int test = matrix[i][j];
+                fractionMatrix[i][j] = (double) matrix[i][j]/denominator;
             }
         }
 
         return fractionMatrix;
     }
 
-    private static fraction[][] getIdentityMatrix(int size) {
-        fraction[][] identityMatrix = new fraction[size][size];
+    private static double[][] getIdentityMatrix(int size) {
+        double[][] identityMatrix = new double[size][size];
 
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
                 if (i == j) {
-                    identityMatrix[i][j] = new fraction(1, 1);
+                    identityMatrix[i][j] = 1;
                 } else {
-                    identityMatrix[i][j] = new fraction(0, 1);
+                    identityMatrix[i][j] = 0;
                 }
             }
         }
@@ -131,7 +199,7 @@ public class Solution {
         return identityMatrix;
     }
 
-    private static fraction[][] getFundamentalMatrix(fraction[][] fullMatrix, fraction[][] I) {
+    private static double[][] getFundamentalMatrix(double[][] fullMatrix, double[][] I) {
 
         // Matrix F = (I - Q)^-1
         // Where I is the identity matrix
@@ -141,19 +209,39 @@ public class Solution {
   
         // F will temporarily be the Q, until F is fully computed.
         // Since they are the same size
-        fraction[][] F = getQ(fullMatrix, I.length);
+
+        // print fullmatrix
+
+        double[][] F = getQ(fullMatrix, I.length);
+
+        System.out.println("Q");
+        for (int i = 0; i < F.length; i++) {
+            for (int j = 0; j < F[0].length; j++) {
+                System.out.print(F[i][j] + " ");
+            }
+            System.out.println();
+        }
 
         // I - Q
         // Recall that Q if currently F.
         F = subtractMatrices(I, F);
 
+        // // print F
+        System.out.println("I-Q");
+        for (int i = 0; i < F.length; i++) {
+            for (int j = 0; j < F[0].length; j++) {
+                System.out.print(F[i][j] + " ");
+            }
+            System.out.println();
+        }
+
         // (I - Q)^-1
-        return inverseMatrix(F);
+        return inverse(F);
     }
 
-    private static fraction[][] getQ(fraction[][] fullMatrix, int terminalStateCount) {
+    private static double[][] getQ(double[][] fullMatrix, int terminalStateCount) {
 
-        fraction[][] Q = new fraction[fullMatrix.length-terminalStateCount][fullMatrix.length-terminalStateCount];
+        double[][] Q = new double[fullMatrix.length-terminalStateCount][fullMatrix.length-terminalStateCount];
 
         for (int i = terminalStateCount; i < fullMatrix.length; i++) {
             for (int j = terminalStateCount; j < fullMatrix.length; j++) {
@@ -164,52 +252,91 @@ public class Solution {
         return Q;
     }
 
-    private static fraction[][] getR(fraction[][] fullMatrix, int terminalStateCount) {
+    private static double[][] getR(double[][] fullMatrix, int terminalStateCount) {
   
-        fraction[][] R = new fraction[fullMatrix.length-terminalStateCount][terminalStateCount];
+        double[][] R = new double[fullMatrix.length-terminalStateCount][terminalStateCount];
 
         for (int i = terminalStateCount; i < fullMatrix.length; i++) {
             for (int j = 0; j < terminalStateCount; j++) {
                 R[i-terminalStateCount][j] = fullMatrix[i][j];
             }
         }
-
         return R;
     }
 
-    private static fraction[][] subtractMatrices(fraction[][] matrix1, fraction[][] matrix2) {
-        fraction[][] subtractedMatrix = new fraction[matrix1.length][matrix1.length];
+    private static double[][] subtractMatrices(double[][] matrix1, double[][] matrix2) {
+        double[][] subtractedMatrix = new double[matrix2.length][matrix2.length];
 
         for (int i = 0; i < matrix2.length; i++) {
-            for (int j = 0; j < matrix2.length; j++) {
-                subtractedMatrix[i][j] = new fraction(matrix1[i][j].getNumerator() - matrix2[i][j].getNumerator(), 1);
+            for (int j = 0; j < matrix2[0].length; j++) {
+                subtractedMatrix[i][j] = matrix1[i][j] - matrix2[i][j];
             }
         }
 
         return subtractedMatrix;
     }
 
-    private static fraction[][] inverseMatrix(fraction[][] matrix) {
-        // Using row operations, we can find the inverse of a matrix
-        GaussElimination gaussElimination = new GaussElimination(matrix);
-        return gaussElimination.inverse();
-    }
+    private static double determinant(double[][] matrix) {
+        int rows = matrix.length;
+        if (rows < 1) return 0;
+        int cols = matrix[0].length;
 
-    private static fraction[][] multiplyMatrices(fraction[][] matrix1, fraction[][] matrix2) {
-        fraction[][] multipliedMatrix = new fraction[matrix1.length][matrix1.length];
+		if (rows == 2)
+			return matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
 
-        for (int i = 0; i < matrix1.length; i++) {
-            for (int j = 0; j < matrix1.length; j++) {
+		double det = 0;
+		for (int i = 0; i < cols && rows > 0; i++)
+			det += Math.pow(-1, i) * matrix[0][i]
+					* determinant(minor(matrix, 0, i));
+		return det;
+	}
 
-                int numerator = 0;
-                int denominator = 0;
+	private static double[][] inverse(double[][] matrix) {
+		double[][] inverse = new double[matrix.length][matrix.length];
 
-                for (int k = 0; k < matrix1.length; k++) {
-                    numerator += matrix1[i][k].getNumerator() * matrix2[k][j].getNumerator();
-                    denominator += matrix1[i][k].getDenominator() * matrix2[k][j].getDenominator();
+		// minors and cofactors
+		for (int i = 0; i < matrix.length; i++)
+			for (int j = 0; j < matrix[i].length; j++)
+				inverse[i][j] = Math.pow(-1, i + j)
+						* determinant(minor(matrix, i, j));
+
+		// adjugate and determinant
+		double det = 1.0 / determinant(matrix);
+		for (int i = 0; i < inverse.length; i++) {
+			for (int j = 0; j <= i; j++) {
+				double temp = inverse[i][j];
+				inverse[i][j] = inverse[j][i] * det;
+				inverse[j][i] = temp * det;
+			}
+		}
+
+		return inverse;
+	}
+
+	private static double[][] minor(double[][] matrix, int row, int column) {
+		double[][] minor = new double[matrix.length - 1][matrix.length - 1];
+
+		for (int i = 0; i < matrix.length; i++)
+			for (int j = 0; i != row && j < matrix[i].length; j++)
+				if (j != column)
+					minor[i < row ? i : i - 1][j < column ? j : j - 1] = matrix[i][j];
+		return minor;
+	}
+
+    private static double[][] multiplyMatrices(double[][] matrix1, double[][] matrix2) {
+
+        if (matrix1[0].length != matrix2.length) {
+            // System.out.println("Cannot multiply matrices: " + matrix1[0].length + " != " + matrix2.length);
+            return null;
+        }
+
+        double[][] multipliedMatrix = new double[matrix1.length][matrix2[0].length];
+
+        for (int i = 0; i < multipliedMatrix.length; i++) {
+            for (int j = 0; j < multipliedMatrix[0].length; j++) {
+                for (int k = 0; k < matrix1[0].length; k++) {
+                    multipliedMatrix[i][j] += matrix1[i][k] * matrix2[k][j];
                 }
-
-                multipliedMatrix[i][j] = new fraction(numerator, denominator);
             }
         }
 
@@ -218,8 +345,8 @@ public class Solution {
 
 
     public static class fraction {
-        int numerator;
-        int denominator;
+        int numerator = 0;
+        int denominator = 1;
         public fraction (int numerator, int denominator) {
             this.numerator = numerator;
             this.denominator = denominator;
@@ -284,138 +411,146 @@ public class Solution {
     }
 
     public static void main(String[] args) {
-        int[][] matrix = {{0, 1, 0, 0, 0, 1}, 
-                          {4, 0, 0, 3, 2, 0}, 
-                          {0, 0, 0, 0, 0, 0}, 
-                          {0, 0, 0, 0, 0, 0}, 
-                          {0, 0, 0, 0, 0, 0}, 
-                          {0, 0, 0, 0, 0, 0}};
+        int[][] matrix = {{0, 1, 0, 0, 0, 1}, {4, 0, 0, 3, 2, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0}};
         solution(matrix);
     }
 
-    public static class GaussElimination {                                                            
-        private fraction[][] m;
-        int row;
-        int column;
+    // public static class GaussElimination {
+    //     private double[][] m;
+    //     int row;
+    //     int column;
 
-        public GaussElimination(fraction[][] A){
-  
+    //     public GaussElimination(double[][] A){
 
-            row = A.length;
-            column = A[0].length;
+    //         row = A.length;
+    //         column = A[0].length;
 
-            m = new fraction[row][2 * column];
-            for(int i = 0; i < row; i++){
+    //         m = new double[row][2 * column];
+    //         for(int i = 0; i < row; i++){
 
-                for(int j = 0; j < column; j++){
+    //             for(int j = 0; j < 2*column; j++){
+    //                 if (j < column)
+    //                     m[i][j] = A[i][j];
+    //                 else
+    //                     m[i][j] = new fraction(0, 1);
+    //             }
+    //         }
+    //         for(int i = 0; i < row; i++){ 
+
+    //             m[i][column + i] = new fraction(1, 1);
+
+    //         }
  
-                    m[i][j] = A[i][j];
-                }
-            }
-            for(int i = 0; i < row; i++){ 
-
-                m[i][column + i] = new fraction(1, 1);
-
-            }
- 
-        }
+    //     }
 
 
  
-        /** ifZero checks if the element in position (c,c) is zero, if so swap rows until the element is not zero
-             * @param c - the element to be checked.*/
-        private void ifZero(int c){
+    //     /** ifZero checks if the element in position (c,c) is zero, if so swap rows until the element is not zero
+    //          * @param c - the element to be checked.*/
+    //     private void ifZero(int c){
   
-            int i;
-            boolean processing = m[c][c].getNumerator() == 0;
-            while(processing){
-                for(i = c+1; i < m.length; i++){
+    //         int i;
+    //         boolean processing = m[c][c].getNumerator() == 0;
+    //         while(processing){
+    //             for(i = c+1; i < m.length; i++){
  
-                    swapRows(m, c, i);
-                    if (!(m[c][c].getNumerator() == 0)){
+    //                 swapRows(m, c, i);
+    //                 if (!(m[c][c].getNumerator() == 0)){
   
-                        i = m.length;
-                        processing = false;
+    //                     i = m.length;
+    //                     processing = false;
  
-                    }
-                }
+    //                 }
+    //             }
   
-                if(i == m.length && (m[c][c].getNumerator() == 0)){
+    //             if(i == m.length && (m[c][c].getNumerator() == 0)){
  
-                    processing = false;
+    //                 processing = false;
 
-                }
+    //             }
 
-            }
+    //         }
   
-        }
+    //     }
 
-        /** swapRows swaps the rows of the matrix m.
-             * @param m - the matrix.
-             * @param r1 - the first row.
-             * @param r2 - the second row.*/
-        private void swapRows(fraction[][] m, int r1, int r2){
+    //     /** swapRows swaps the rows of the matrix m.
+    //          * @param m - the matrix.
+    //          * @param r1 - the first row.
+    //          * @param r2 - the second row.*/
+    //     private void swapRows(double[][] m, int r1, int r2){
 
-                fraction[] temp = m[r1];
-                m[r1] = m[r2];
-                m[r2] = temp;
+    //             double[] temp = m[r1];
+    //             m[r1] = m[r2];
+    //             m[r2] = temp;
 
-        }
+    //     }
   
-        /** diagonalize manipulates with rows of the matrix m so that 
-             all the elements outside the diagonal become zero.*/
-        private void diagonalize(){
+    //     /** diagonalize manipulates with rows of the matrix m so that 
+    //          all the elements outside the diagonal become zero.*/
+    //     private void diagonalize(){
   
-            for(int i = 0; i < m.length; i++){ 
+    //         for(int i = 0; i < m.length; i++){ 
 
-                ifZero(i);  
-                for(int j = 0; j < m.length; j++){ 
-                    if (i != j && m[i][i].getNumerator() != 0){ 
-                    fraction d = (m[j][i].divide(m[i][i]));
+    //             ifZero(i);
 
-                    for(int a = 0; a < m[0].length; a++) {
-                        fraction value = m[i][a].multiply(d);
-                        m[j][a] = m[j][a].add(value);
-                    }  
-                    }
+    //             for (int j = 0; j < m.length; j++){ 
 
-                }
+    //                 if (i != j && m[i][i].getNumerator() != 0){ 
+                    
+    //                     fraction d = (m[j][i].divide(m[i][i])).multiply(new fraction(-1, 1));
 
-            }
+    //                     for(int a = 0; a < m[0].length; a++) {
+                            
+    //                         d = m[i][a].multiply(d);
+    //                         m[j][a] = m[j][a].add(d);
+                    
+    //                     }
+    //                 }
+
+    //             }
+
+    //         }
   
-        }
+    //     }
   
-        /** divideByDiagonal turns the elements of the diagonal into 1's.*/
-        private void divideByDiagonal(){
+    //     /** divideByDiagonal turns the elements of the diagonal into 1's.*/
+    //     private void divideByDiagonal(){
   
-            for(int i = 0; i < m.length; i++) {
-                if(m[i][i].getNumerator() != 0) {
-                    for (int a = 0; a < m.length; a++) {
-                        m[i][a] = m[i][i].inverse();
-                    }
-                }
-            }  
-        }
+    //         for(int i = 0; i < m.length; i++) {
+    //             if(m[i][i].getNumerator() != 0) {
+    //                 for(int a = 0; a < m[0].length; a++){
+                    
+    //                     m[i][a] = m[i][a].multiply(m[i][i].inverse());
+    //                     if(m[i][a].getNumerator() == -0 || m[i][a].getNumerator() == 0 && m[i][a].getDenominator() < 0){
+                        
+    //                         m[i][a] = new fraction(0, 1);
+                            
+    //                     }
+                        
+    //                 }
+    //             }
+    //         }  
+    //     }
   
-        /** inverse calculates and returns the inverse of the matrix m using the upper methods.*/
-        public fraction[][] inverse(){
+    //     /** inverse calculates and returns the inverse of the matrix m using the upper methods.*/
+    //     public double[][] inverse(){
 
-            diagonalize();
-            divideByDiagonal();
+    //         diagonalize();
+    //         divideByDiagonal();
 
-            //the inverse matrix
-            fraction[][] inverse_m = new fraction[m.length][m[0].length]; 
-            for(int i = 0; i < inverse_m .length; i++){
+    //         //the inverse matrix
+    //         double[][] inverse_m = new double[m.length][m.length]; 
+    //         for(int i = 0; i < inverse_m.length; i++){
  
-                for(int j = 0; j <inverse_m .length; j++){
+    //             for(int j = 0; j < inverse_m[0].length; j++){
  
-                    inverse_m [i][j] = m[i][j + inverse_m .length];
+    //                 inverse_m[i][j] = m[i][j + inverse_m.length];
   
-                }
+    //             }
  
-            }
+    //         }
 
-            return inverse_m;
-        }
-    }
-}                                                                                                                                                                                                                                                                       
+    //         return inverse_m;
+    //     }
+    // }
+}
