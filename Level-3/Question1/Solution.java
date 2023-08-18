@@ -1,7 +1,7 @@
 import java.util.ArrayList;
 
 public class Solution {
-    private static int firstIndex = 0;
+    private static int firstIndex = -1;
     public static int[] solution(int[][] m) {
 
         // Using the Absorbing Markov Chain algorithm, we first must
@@ -71,6 +71,9 @@ public class Solution {
             for (double num : matrix[i]) {
                 if (num != 0) {
                     isTerminal = false;
+                    if (firstIndex == -1) {
+                        firstIndex = i;
+                    }
                     break;
                 }
             }
@@ -386,7 +389,7 @@ public class Solution {
         for (int j = 0; j < n-1; j++) 
         {
             double pi1 = 0;
-            for (int i=j; i < n; i++) 
+            for (int i = j; i < n; i++) 
             {
                 double pi0 = Math.abs(a[index[i]][j].getDecimal());
                 pi0 /= c[index[i]].getDecimal();
@@ -399,7 +402,7 @@ public class Solution {
             int itmp = index[j];
             index[j] = index[k];
             index[k] = itmp;
-            for (int i=j+1; i < n; i++) 	
+            for (int i = j+1; i < n; i++) 	
             {
                 fraction pj = a[index[i]][j].divide(a[index[j]][j]);
                 a[index[i]][j] = pj;
@@ -408,10 +411,10 @@ public class Solution {
             }
         }
     }
-}
-
     public static void main(String[] args) {
         int[][] matrix1 = { { 0, 1, 0, 0, 0, 1 }, { 4, 0, 0, 3, 2, 0 }, { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 } };
         int[][] matrix2 = {{0, 2, 1, 0, 0}, {0, 0, 0, 3, 4}, {0, 0, 0, 0, 0}, {0, 0, 0, 0,0}, {0, 0, 0, 0, 0}};
         solution(matrix2);
     }
+}
+
