@@ -209,7 +209,7 @@ public class Solution {
         // Recall that Q if currently F.
         F = subtractMatrices(I, F);
 
-        // // print F
+        // // print F`
         System.out.println("I-Q");
         for (int i = 0; i < F.length; i++) {
             for (int j = 0; j < F[0].length; j++) {
@@ -218,10 +218,7 @@ public class Solution {
             System.out.println();
         }
 
-        // (I - Q)^-1
-        GaussElimination inverter = new GaussElimination(F);
-        F = inverter.inverse();
-        return F;
+        return invert(F);
     }
 
     private static fraction[][] getQ(fraction[][] fullMatrix, int terminalStateCount) {
@@ -290,6 +287,7 @@ public class Solution {
         public fraction(int numerator, int denominator) {
             this.numerator = numerator;
             this.denominator = denominator;
+            simplify();
         }
 
         public int getNumerator() {
@@ -307,9 +305,10 @@ public class Solution {
             return gcd(b, a % b);
         }
 
-        public fraction simplify(fraction f) {
-            int gcd = Math.abs(gcd(f.getNumerator(), f.getDenominator()));
-            return new fraction(f.getNumerator() / gcd, f.getDenominator() / gcd);
+        public void simplify() {
+            int gcd = Math.abs(gcd(numerator, denominator));
+            this.numerator /= gcd;
+            this.denominator /= gcd;
         }
 
         public void setNumerator(int numerator) {
@@ -329,178 +328,116 @@ public class Solution {
         public fraction divide(fraction b) {
             int numerator = this.getNumerator() * b.getDenominator();
             int denominator = this.getDenominator() * b.getNumerator();
-            return simplify(new fraction(numerator, denominator));
+            return new fraction(numerator, denominator);
         }
 
         public fraction multiply(fraction b) {
             int numerator = this.getNumerator() * b.getNumerator();
             int denominator = this.getDenominator() * b.getDenominator();
-            return simplify(new fraction(numerator, denominator));
+            return new fraction(numerator, denominator);
         }
 
         public fraction add(fraction b) {
             int numerator = this.getNumerator() * b.getDenominator() + b.getNumerator() * this.getDenominator();
             int denominator = this.getDenominator() * b.getDenominator();
-            return simplify(new fraction(numerator, denominator));
+            return new fraction(numerator, denominator);
         }
 
         public fraction subtract(fraction b) {
             int numerator = this.getNumerator() * b.getDenominator() - b.getNumerator() * this.getDenominator();
             int denominator = this.getDenominator() * b.getDenominator();
-            return simplify(new fraction(numerator, denominator));
+            return new fraction(numerator, denominator);
         }
 
         public fraction inverse() {
-            return simplify(new fraction(numerator, denominator));
+            return new fraction(numerator, denominator);
         }
     }
 
     public static void main(String[] args) {
-        int[][] matrix = { { 0, 1, 0, 0, 0, 1 }, { 4, 0, 0, 3, 2, 0 }, { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 },
-                { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 } };
+        int[][] matrix = { { 0, 1, 0, 0, 0, 1 }, { 4, 0, 0, 3, 2, 0 }, { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 } };
         solution(matrix);
     }
 
-    public static class GaussElimination {
-        private fraction[][] m;
-        int row;
-        int column;
-
-        public GaussElimination(fraction[][] A) {
-
-            row = A.length;
-            column = A[0].length;
-
-            m = new fraction[row][2 * column];
-            for (int i = 0; i < row; i++) {
-
-                for (int j = 0; j < 2 * column; j++) {
-                    if (j < column)
-                        m[i][j] = A[i][j];
-                    else
-                        m[i][j] = new fraction(0, 1);
-                }
-            }
-            for (int i = 0; i < row; i++) {
-
-                m[i][column + i] = new fraction(1, 1);
-
-            }
-
-        }
-
-        /**
-         * ifZero checks if the element in position (c,c) is zero, if so swap rows until
-         * the element is not zero
-         * 
-         * @param c - the element to be checked.
-         */
-        private void ifZero(int c) {
-
-            int i;
-            boolean processing = m[c][c].getNumerator() == 0;
-            while (processing) {
-                for (i = c + 1; i < m.length; i++) {
-
-                    swapRows(m, c, i);
-                    if (!(m[c][c].getNumerator() == 0)) {
-
-                        i = m.length;
-                        processing = false;
-
-                    }
-                }
-
-                if (i == m.length && (m[c][c].getNumerator() == 0)) {
-
-                    processing = false;
-
-                }
-            }
-        }
-
-        /**
-         * swapRows swaps the rows of the matrix m.
-         * 
-         * @param m  - the matrix.
-         * @param r1 - the first row.
-         * @param r2 - the second row.
-         */
-        private void swapRows(fraction[][] m, int r1, int r2) {
-
-            fraction[] temp = m[r1];
-            m[r1] = m[r2];
-            m[r2] = temp;
-
-        }
-
-        /**
-         * diagonalize manipulates with rows of the matrix m so that
-         * all the elements outside the diagonal become zero.
-         */
-        private void diagonalize() {
-
-            for (int i = 0; i < m.length; i++) {
-
-                ifZero(i);
-
-                for (int j = 0; j < m.length; j++) {
-
-                    if (i != j && m[i][i].getNumerator() != 0) {
-
-                        fraction d = (m[j][i].divide(m[i][i])).multiply(new fraction(-1, 1));
-
-                        for (int a = 0; a < m[0].length; a++) {
-
-                            d = m[i][a].multiply(d);
-                            m[j][a] = m[j][a].add(d);
-
-                        }
-                    }
-                }
-            }
-        }
-
-        /** divideByDiagonal turns the elements of the diagonal into 1's. */
-        private void divideByDiagonal() {
-            for (int i = 0; i < m.length; i++) {
-                if (m[i][i].getNumerator() != 0) {
-                    for (int a = 0; a < m[0].length; a++) {
-
-                        m[i][a] = m[i][a].multiply(m[i][i].inverse());
-                        if (m[i][a].getNumerator() == -0
-                                || m[i][a].getNumerator() == 0 && m[i][a].getDenominator() < 0) {
-
-                            m[i][a] = new fraction(0, 1);
-
-                        }
-                    }
-                }
-            }
-        }
-
-        /**
-         * inverse calculates and returns the inverse of the matrix m using the upper
-         * methods.
-         */
-        public fraction[][] inverse() {
-
-            diagonalize();
-            divideByDiagonal();
-
-            // the inverse matrix
-            fraction[][] inverse_m = new fraction[m.length][m.length];
-            for (int i = 0; i < inverse_m.length; i++) {
-
-                for (int j = 0; j < inverse_m[0].length; j++) {
-
-                    inverse_m[i][j] = m[i][j + inverse_m.length];
-
-                }
-
-            }
-
-            return inverse_m;
-        }
-    }
+    	 public static double[][] invert(double a[][]) 
+	    {
+	        int n = a.length;
+	        double x[][] = new double[n][n];
+	        double b[][] = new double[n][n];
+	        int index[] = new int[n];
+	        for (int i=0; i<n; ++i) 
+	            b[i][i] = 1;
+	 
+	 // Transform the matrix into an upper triangle
+	        gaussian(a, index);
+	 
+	 // Update the matrix b[i][j] with the ratios stored
+	        for (int i=0; i<n-1; ++i)
+	            for (int j=i+1; j<n; ++j)
+	                for (int k=0; k<n; ++k)
+	                    b[index[j]][k]
+	                    	    -= a[index[j]][i]*b[index[i]][k];
+	 
+	 // Perform backward substitutions
+	        for (int i=0; i<n; ++i) 
+	        {
+	            x[n-1][i] = b[index[n-1]][i]/a[index[n-1]][n-1];
+	            for (int j=n-2; j>=0; --j) 
+	            {
+	                x[j][i] = b[index[j]][i];
+	                for (int k=j+1; k<n; ++k) 
+	                {
+	                    x[j][i] -= a[index[j]][k]*x[k][i];
+	                }
+	                x[j][i] /= a[index[j]][j];
+	            }
+	        }
+	        return x;
+	    }
+	    public static void gaussian(fraction[][] a, int[] index) 
+	    {
+	        int n = index.length;
+	        fraction[] c = new fraction[n];
+	 
+	 // Initialize the index
+	        for (int i=0; i<n; ++i) 
+	            index[i] = i;
+	 
+	 // Find the rescaling factors, one from each row
+	        for (int i=0; i<n; ++i) 
+	        {
+	            double c1 = 0;
+	            for (int j=0; j<n; ++j) 
+	            {
+	                double c0 = Math.abs(a[i][j]);
+	                if (c0 > c1) c1 = c0;
+	            }
+	            c[i] = c1;
+	        }
+	        int k = 0;
+	        for (int j=0; j<n-1; ++j) 
+	        {
+	            double pi1 = 0;
+	            for (int i=j; i<n; ++i) 
+	            {
+	                double pi0 = Math.abs(a[index[i]][j]);
+	                pi0 /= c[index[i]];
+	                if (pi0 > pi1) 
+	                {
+	                    pi1 = pi0;
+	                    k = i;
+	                }
+	            }
+	            int itmp = index[j];
+	            index[j] = index[k];
+	            index[k] = itmp;
+	            for (int i=j+1; i<n; ++i) 	
+	            {
+	                double pj = a[index[i]][j]/a[index[j]][j];
+	                a[index[i]][j] = pj;
+	                for (int l=j+1; l<n; ++l)
+	                    a[index[i]][l] -= pj*a[index[j]][l];
+	            }
+	        }
+	        }
 }
