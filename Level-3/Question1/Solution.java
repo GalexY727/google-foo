@@ -1,3 +1,4 @@
+import java.math.BigInteger;
 import java.util.ArrayList;
 
 public class Solution {
@@ -25,41 +26,42 @@ public class Solution {
         fraction[][] standardizedMatrix = toStandardForm(m, terminalStates);
 
         // Which requires the standardized matrix and the identity matrix
-        fraction[][] F = getFundamentalMatrix(standardizedMatrix, getIdentityMatrix(terminalStates.size()));
+        fraction[][] F = getFundamentalMatrix(standardizedMatrix, terminalStates.size());
 
         // Compute the limiting matrix
         // i.e. F * R
-
         return finalArray(multiplyMatrices(F, getR(standardizedMatrix, terminalStates.size())));
     }
 
     private static int[] finalArray(fraction[][] FR) {
-        // The final array is the first row of the FR matrix
-        // We need to find the lowest common multiple of the denominators
-
+        // The final array is the row of the FR matrix that corresponds to the s0
         int[] finalArray = new int[FR[firstIndex].length+1];
 
         finalArray[FR[firstIndex].length] = 1;
+
+        BigInteger lcm = FR[firstIndex][0].getDenominator();
         for (int i = 0; i < FR[firstIndex].length; i++) {
-            finalArray[FR[firstIndex].length] = lcm(finalArray[FR[firstIndex].length], FR[firstIndex][i].getDenominator());
+            lcm = lcm(lcm, FR[firstIndex][i].getDenominator());
         }
 
+        finalArray[FR[firstIndex].length] = lcm.intValue();
+
         for (int i = 0; i < FR[firstIndex].length; i++) {
-            finalArray[i] = FR[firstIndex][i].getNumerator() * (finalArray[FR[firstIndex].length] / FR[firstIndex][i].getDenominator());
+            finalArray[i] = FR[firstIndex][i].getNumerator().multiply(lcm.divide(FR[firstIndex][i].getDenominator())).intValue();
         }
 
         return finalArray;
     }
 
-    private static int lcm(int a, int b) {
-        return a * (b / gcd(a, b));
+    private static BigInteger lcm(BigInteger a, BigInteger b) {
+        return a.multiply(b.divide(gcd(a, b)));
     }
 
-    private static int gcd(int a, int b) {
-        if (b == 0) {
+    private static BigInteger gcd(BigInteger a, BigInteger b) {
+        if (b.equals(BigInteger.valueOf(0))) {
             return a;
         }
-        return gcd(b, a % b);
+        return gcd(b, a.mod(b));
     }
 
     /**
@@ -72,8 +74,7 @@ public class Solution {
 
         ArrayList<Integer> terminalStates = new ArrayList<Integer>();
 
-        // Iterate backwards so that the top of the stack is the
-        // smallest terminal state
+        // terminal state = state that has no exits
         for (int i = 0; i < matrix.length; i++) {
             boolean isTerminal = true;
             for (double num : matrix[i]) {
@@ -121,16 +122,26 @@ public class Solution {
             if (i == firstIndex) {
                 firstIndex = terminalStates.get(i);
             }
-            int[] temp = matrix[i];
-            matrix[terminalStates.get(i)][0] = terminalStates.get(i);
+            int[] temprow = matrix[i];
             matrix[i] = matrix[terminalStates.get(i)];
-            matrix[terminalStates.get(i)] = temp;
+            matrix[terminalStates.get(i)] = temprow;
 
+            // Now, the columns
+            // This is done by swapping the columns of the terminal states
+            // with the highest non-terminal column
+            // this algorithm must be the same as the row swaps
+            if (terminalStates.get(i) == i) {
+                continue;
+            }
+
+            for (int j = 0; j < matrix.length; j++) {
+                int tempcol = matrix[j][i];
+                matrix[j][i] = matrix[j][terminalStates.get(i)];
+                matrix[j][terminalStates.get(i)] = tempcol;
+            }
         }
         firstIndex -= terminalStates.size();
-        // Now, the columns
-        // This is done by swapping the columns of the terminal states
-        // with the highest non-terminal column
+
         for (int i = 0; i < terminalStates.size(); i++) {
             if (terminalStates.get(i) == i) {
                 continue;
@@ -147,15 +158,15 @@ public class Solution {
         // Now, we need to convert the matrix to fractions
         // We need to add all of the values in a row up to get our denominator
         for (int i = 0; i < matrix.length; i++) {
-            int denominator = 0;
+            BigInteger denominator = BigInteger.valueOf(0);
             for (int j = 0; j < matrix.length; j++) {
-                denominator += matrix[i][j];
+                denominator = denominator.add(BigInteger.valueOf(matrix[i][j]));
             }
-            if (denominator == 0) {
-                denominator = 1;
+            if (denominator.equals(BigInteger.valueOf(0))) {
+                denominator = BigInteger.valueOf(1);
             }
             for (int j = 0; j < matrix.length; j++) {
-                fractionMatrix[i][j] = new fraction(matrix[i][j], denominator);
+                fractionMatrix[i][j] = new fraction(BigInteger.valueOf(matrix[i][j]), denominator);
             }
         }
 
@@ -168,9 +179,9 @@ public class Solution {
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
                 if (i == j) {
-                    identityMatrix[i][j] = new fraction(1, 1);
+                    identityMatrix[i][j] = new fraction(BigInteger.valueOf(1), BigInteger.valueOf(1));
                 } else {
-                    identityMatrix[i][j] = new fraction(0, 1);
+                    identityMatrix[i][j] = new fraction(BigInteger.valueOf(0), BigInteger.valueOf(1));
                 }
             }
         }
@@ -178,7 +189,7 @@ public class Solution {
         return identityMatrix;
     }
 
-    private static fraction[][] getFundamentalMatrix(fraction[][] fullMatrix, fraction[][] I) {
+    private static fraction[][] getFundamentalMatrix(fraction[][] fullMatrix, int terminalStateCount) {
 
         // Matrix F = (I - Q)^-1
         // Where I is the identity matrix
@@ -188,11 +199,11 @@ public class Solution {
 
         // F will temporarily be the Q, until F is fully computed.
         // Since they are the same size
-        fraction[][] F = getQ(fullMatrix, I.length);
+        fraction[][] F = getQ(fullMatrix, terminalStateCount);
 
         // I - Q
         // Recall that Q if currently F.
-        F = subtractMatrices(I, F);
+        F = subtractMatrices(getIdentityMatrix(fullMatrix.length - terminalStateCount), F);
 
         return invert(F);
     }
@@ -223,7 +234,7 @@ public class Solution {
     }
 
     private static fraction[][] subtractMatrices(fraction[][] matrix1, fraction[][] matrix2) {
-        fraction[][] subtractedMatrix = new fraction[matrix2.length][matrix2.length];
+        fraction[][] subtractedMatrix = new fraction[matrix2.length][matrix2[0].length];
 
         for (int i = 0; i < matrix2.length; i++) {
             for (int j = 0; j < matrix2[0].length; j++) {
@@ -239,7 +250,7 @@ public class Solution {
 
         for (int i = 0; i < multipliedMatrix.length; i++) {
             for (int j = 0; j < multipliedMatrix[0].length; j++) {
-                fraction sum = new fraction(0, 1);
+                fraction sum = new fraction(BigInteger.valueOf(0), BigInteger.valueOf(1));
                 for (int k = 0; k < matrix1[0].length; k++) {
                     sum = sum.add(matrix1[i][k].multiply(matrix2[k][j]));
                 }
@@ -251,71 +262,65 @@ public class Solution {
     }
 
     public static class fraction {
-        int numerator = 0;
-        int denominator = 1;
+        BigInteger numerator = BigInteger.valueOf(0);
+        BigInteger denominator = BigInteger.valueOf(1);
 
-        public fraction(int numerator, int denominator) {
+        public fraction(BigInteger numerator, BigInteger denominator) {
             this.numerator = numerator;
             this.denominator = denominator;
             simplify();
         }
 
-        public int getNumerator() {
+        public BigInteger getNumerator() {
             return this.numerator;
         }
 
-        public int getDenominator() {
+        public BigInteger getDenominator() {
             return this.denominator;
         }
 
-        private int gcd(int a, int b) {
-            if (b == 0) {
+        private BigInteger gcd(BigInteger a, BigInteger b) {
+            if (b.equals(BigInteger.valueOf(0))) {
                 return a;
             }
-            return gcd(b, a % b);
+            return gcd(b, a.mod(b));
         }
 
         public void simplify() {
-            int gcd = Math.abs(gcd(numerator, denominator));
-            this.numerator /= gcd;
-            this.denominator /= gcd;
+            BigInteger gcd = gcd(numerator, denominator).abs();
+            this.numerator = numerator.divide(gcd);
+            this.denominator = denominator.divide(gcd);
         }
 
-        public void setNumerator(int numerator) {
+        public void setNumerator(BigInteger numerator) {
             this.numerator = numerator;
         }
 
-        public void setDenominator(int denominator) {
+        public void setDenominator(BigInteger denominator) {
             this.denominator = denominator;
         }
 
-        public void convertDenominator(int newDenominator) {
-            int factor = newDenominator / denominator;
-            numerator = numerator * factor;
-            denominator = denominator * factor;
-        }
-
         public fraction divide(fraction b) {
-            int numerator = this.getNumerator() * b.getDenominator();
-            int denominator = this.getDenominator() * b.getNumerator();
+            BigInteger numerator = this.getNumerator().multiply(b.getDenominator());
+            BigInteger denominator = this.getDenominator().multiply(b.getNumerator());
             return new fraction(numerator, denominator);
         }
 
         public fraction multiply(fraction b) {
-            int numerator = this.getNumerator() * b.getNumerator();
-            int denominator = this.getDenominator() * b.getDenominator();
+            BigInteger numerator = this.getNumerator().multiply(b.getNumerator());
+            BigInteger denominator = this.getDenominator().multiply(b.getDenominator());
             return new fraction(numerator, denominator);
         }
 
         public fraction add(fraction b) {
-            int numerator = this.getNumerator() * b.getDenominator() + b.getNumerator() * this.getDenominator();
-            int denominator = this.getDenominator() * b.getDenominator();
+            BigInteger numerator = this.getNumerator().multiply(b.getDenominator()).add(b.getNumerator().multiply(this.getDenominator()));
+            BigInteger denominator = this.getDenominator().multiply(b.getDenominator());
             return new fraction(numerator, denominator);
         }
 
         public fraction subtract(fraction b) {
-            int numerator = this.getNumerator() * b.getDenominator() - b.getNumerator() * this.getDenominator();
-            int denominator = this.getDenominator() * b.getDenominator();
+            BigInteger numerator = this.getNumerator().multiply(b.getDenominator()).subtract(b.getNumerator().multiply(this.getDenominator()));
+            BigInteger denominator = this.getDenominator().multiply(b.getDenominator());
             return new fraction(numerator, denominator);
         }
 
@@ -324,15 +329,13 @@ public class Solution {
         }
 
         public fraction abs() {
-            return new fraction(Math.abs(numerator), denominator);
+            return new fraction(numerator.abs(), denominator);
         }
 
         public double getDecimal() {
-            return (double) numerator / (double) denominator;
+            return numerator.doubleValue() / denominator.doubleValue();
         }
     }
-
-
 
     public static fraction[][] invert(fraction[][] a)
     {
@@ -343,9 +346,9 @@ public class Solution {
         for (int i = 0; i < n; i++) 
             for (int j = 0; j < n; j++) 
                 if (i == j)
-                    b[i][i] = new fraction(1, 1);
+                    b[i][i] = new fraction(BigInteger.valueOf(1), BigInteger.valueOf(1));
                 else
-                    b[i][j] = new fraction(0, 1);
+                    b[i][j] = new fraction(BigInteger.valueOf(0), BigInteger.valueOf(1));
     
         // Transform the matrix into an upper triangle
         gaussian(a, index);
@@ -385,7 +388,7 @@ public class Solution {
         // Find the rescaling factors, one from each row
         for (int i = 0; i < n; i++) 
         {
-            fraction c1 = new fraction(0, 1);
+            fraction c1 = new fraction(BigInteger.valueOf(0), BigInteger.valueOf(1));
             for (int j = 0; j < n; j++) 
             {
                 fraction c0 = a[i][j].abs();
@@ -417,6 +420,21 @@ public class Solution {
                 for (int l = j+1; l < n; l++)
                     a[index[i]][l] = a[index[i]][l].subtract(pj.multiply(a[index[j]][l]));
             }
+        }
+    }
+    public static void main(String[] args) {
+        int[][] example10 = new int[][]{
+                {5, 13, 0, 0, 7, 21, 1024},
+                {1, 2, 3, 0, 8, 6, 0},
+                {7, 5, 2, 1, 2048, 0, 9},
+                {0, 0, 0, 0, 0, 0 , 0},
+                {10, 9, 8, 228, 729, 630, 1},
+                {15, 10000, 3, 0, 0, 0, 8},
+                {0, 0, 0, 0, 0, 0 , 0}
+        };
+        int[] sol = solution(example10);
+        for (int i : sol) {
+            System.out.print(i + " ");
         }
     }
 }
