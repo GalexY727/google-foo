@@ -12,6 +12,14 @@ public class Solution {
         // Find the terminal states in the matrix, and re-order columns to reflect the
         // change
         ArrayList<Integer> terminalStates = findTerminalStates(m);
+        
+        // If the first state is terminal, we're already done.
+        if (terminalStates.get(0) == 0) {
+            int[] finalArray = new int[terminalStates.size() + 1];
+            finalArray[0] = 1;
+            finalArray[terminalStates.size()] = 1;
+            return finalArray;
+        }
 
         // Re-order the matrix in standard form
         fraction[][] standardizedMatrix = toStandardForm(m, terminalStates);
@@ -411,10 +419,4 @@ public class Solution {
             }
         }
     }
-    public static void main(String[] args) {
-        int[][] matrix1 = { { 0, 1, 0, 0, 0, 1 }, { 4, 0, 0, 3, 2, 0 }, { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 }, { 0, 0, 0, 0, 0, 0 } };
-        int[][] matrix2 = {{0, 2, 1, 0, 0}, {0, 0, 0, 3, 4}, {0, 0, 0, 0, 0}, {0, 0, 0, 0,0}, {0, 0, 0, 0, 0}};
-        solution(matrix2);
-    }
 }
-
