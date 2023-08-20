@@ -33,6 +33,12 @@ public class Solution {
         return finalArray(multiplyMatrices(F, getR(standardizedMatrix, terminalStates.size())));
     }
 
+    /**
+     * Converts the final matrix into the final array
+     * @param FR the final matrix
+     * @return an array of integers representing fractions 
+     *   with the last index being the common denominator
+     */
     private static int[] finalArray(fraction[][] FR) {
         // The final array is the row of the FR matrix that corresponds to the s0
         int[] finalArray = new int[FR[firstIndex].length+1];
@@ -68,7 +74,7 @@ public class Solution {
      * Finds all termainal states in a matrix
      * A terminal state is one that has no exits
      * 
-     * @param matrix
+     * @param matrix the matrix to search
      */
     private static ArrayList<Integer> findTerminalStates(int[][] matrix) {
 
@@ -101,13 +107,12 @@ public class Solution {
      * zeros are top right
      * with the bottom left and bottom right being
      * the transition matricies
-     * 
      * Since we are standardizing this matrix,
      * we will also be converting the matrix to fractions
      * for easier computation later on.
      * 
-     * @param matrix
-     * @param terminalStates
+     * @param matrix the matrix to standardize
+     * @param terminalStates the terminal states in the matrix
      * @return the computed matrix
      */
     private static fraction[][] toStandardForm(int[][] matrix, ArrayList<Integer> terminalStates) {
@@ -122,26 +127,16 @@ public class Solution {
             if (i == firstIndex) {
                 firstIndex = terminalStates.get(i);
             }
-            int[] temprow = matrix[i];
+            int[] temp = matrix[i];
             matrix[i] = matrix[terminalStates.get(i)];
-            matrix[terminalStates.get(i)] = temprow;
-
-            // Now, the columns
-            // This is done by swapping the columns of the terminal states
-            // with the highest non-terminal column
-            // this algorithm must be the same as the row swaps
-            if (terminalStates.get(i) == i) {
-                continue;
-            }
-
-            for (int j = 0; j < matrix.length; j++) {
-                int tempcol = matrix[j][i];
-                matrix[j][i] = matrix[j][terminalStates.get(i)];
-                matrix[j][terminalStates.get(i)] = tempcol;
-            }
+            matrix[terminalStates.get(i)] = temp;
         }
         firstIndex -= terminalStates.size();
 
+        // Now, the columns
+        // This is done by swapping the columns of the terminal states
+        // with the highest non-terminal column
+        // this algorithm must be the same as the row swaps
         for (int i = 0; i < terminalStates.size(); i++) {
             if (terminalStates.get(i) == i) {
                 continue;
@@ -173,6 +168,14 @@ public class Solution {
         return fractionMatrix;
     }
 
+    /**
+     * Gets the identity matrix of a given size
+     * 1 0 0
+     * 0 1 0 <-- example of a 3x3 identity matrix
+     * 0 0 1
+     * @param size the size of the matrix
+     * @return the identity matrix
+     */
     private static fraction[][] getIdentityMatrix(int size) {
         fraction[][] identityMatrix = new fraction[size][size];
 
@@ -189,6 +192,13 @@ public class Solution {
         return identityMatrix;
     }
 
+    /**
+     * Gets the fundamental matrix of the full matrix
+     * (I - Q)^-1
+     * @param fullMatrix the full matrix
+     * @param terminalStateCount the number of terminal states
+     * @return
+     */
     private static fraction[][] getFundamentalMatrix(fraction[][] fullMatrix, int terminalStateCount) {
 
         // Matrix F = (I - Q)^-1
@@ -208,27 +218,36 @@ public class Solution {
         return invert(F);
     }
 
+    /**
+     * Gets the Q submatrix of the full matrix
+     * @param fullMatrix the full matrix
+     * @param terminalStateCount the number of terminal states
+     * @return
+     */
     private static fraction[][] getQ(fraction[][] fullMatrix, int terminalStateCount) {
 
         fraction[][] Q = new fraction[fullMatrix.length - terminalStateCount][fullMatrix.length - terminalStateCount];
 
         for (int i = terminalStateCount; i < fullMatrix.length; i++) {
-            for (int j = terminalStateCount; j < fullMatrix.length; j++) {
-                Q[i - terminalStateCount][j - terminalStateCount] = fullMatrix[i][j];
-            }
+            if (fullMatrix.length - terminalStateCount >= 0)
+                System.arraycopy(fullMatrix[i], terminalStateCount, Q[i - terminalStateCount], 0, fullMatrix.length - terminalStateCount);
         }
 
         return Q;
     }
 
+    /**
+     * Gets the R submatrix of the full matrix
+     * @param fullMatrix the full matrix
+     * @param terminalStateCount the number of terminal states
+     * @return
+     */
     private static fraction[][] getR(fraction[][] fullMatrix, int terminalStateCount) {
 
         fraction[][] R = new fraction[fullMatrix.length - terminalStateCount][terminalStateCount];
 
         for (int i = terminalStateCount; i < fullMatrix.length; i++) {
-            for (int j = 0; j < terminalStateCount; j++) {
-                R[i - terminalStateCount][j] = fullMatrix[i][j];
-            }
+            System.arraycopy(fullMatrix[i], 0, R[i - terminalStateCount], 0, terminalStateCount);
         }
         return R;
     }
@@ -262,8 +281,8 @@ public class Solution {
     }
 
     public static class fraction {
-        BigInteger numerator = BigInteger.valueOf(0);
-        BigInteger denominator = BigInteger.valueOf(1);
+        private BigInteger numerator = BigInteger.valueOf(0);
+        private BigInteger denominator = BigInteger.valueOf(1);
 
         public fraction(BigInteger numerator, BigInteger denominator) {
             this.numerator = numerator;
@@ -292,14 +311,6 @@ public class Solution {
             this.denominator = denominator.divide(gcd);
         }
 
-        public void setNumerator(BigInteger numerator) {
-            this.numerator = numerator;
-        }
-
-        public void setDenominator(BigInteger denominator) {
-            this.denominator = denominator;
-        }
-
         public fraction divide(fraction b) {
             BigInteger numerator = this.getNumerator().multiply(b.getDenominator());
             BigInteger denominator = this.getDenominator().multiply(b.getNumerator());
@@ -324,10 +335,6 @@ public class Solution {
             return new fraction(numerator, denominator);
         }
 
-        public fraction inverse() {
-            return new fraction(numerator, denominator);
-        }
-
         public fraction abs() {
             return new fraction(numerator.abs(), denominator);
         }
@@ -337,18 +344,18 @@ public class Solution {
         }
     }
 
+    /**
+     * Method to carry out the partial-pivoting Gaussian
+     * @param a input matrix
+     * @return the inverted matrix
+     */
     public static fraction[][] invert(fraction[][] a)
     {
         int n = a.length;
         fraction[][] x = new fraction[n][n];
         fraction[][] b = new fraction[n][n];
         int[] index = new int[n];
-        for (int i = 0; i < n; i++) 
-            for (int j = 0; j < n; j++) 
-                if (i == j)
-                    b[i][i] = new fraction(BigInteger.valueOf(1), BigInteger.valueOf(1));
-                else
-                    b[i][j] = new fraction(BigInteger.valueOf(0), BigInteger.valueOf(1));
+        b = getIdentityMatrix(n);
     
         // Transform the matrix into an upper triangle
         gaussian(a, index);
@@ -376,6 +383,11 @@ public class Solution {
         return x;
     }
 	    
+    /**
+     * Method to carry out the partial-pivoting Gaussian
+     * @param a input matrix
+     * @param index index
+     */
     public static void gaussian(fraction[][] a, int[] index) 
     {
         int n = index.length;
